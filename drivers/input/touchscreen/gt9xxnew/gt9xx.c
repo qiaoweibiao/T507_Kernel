@@ -2665,6 +2665,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     s32 ret = -1;
     struct goodix_ts_data *ts;
     u16 version_info;
+	printk("qwb0070000000000000000000000000000000");
 
     //do NOT remove these logs
     dprintk(DEBUG_INIT,"GTP Driver Version: %s", GTP_DRIVER_VERSION);
@@ -3341,6 +3342,13 @@ static void gtp_esd_check_func(struct work_struct *work)
     return;
 }
 #endif
+
+static const struct of_device_id goodix_of_match[] = {
+	{.compatible = "allwinner,goodix"},
+	{},
+};
+
+
 
 static const struct i2c_device_id goodix_ts_id[] = {
         { CTP_NAME, 0 },

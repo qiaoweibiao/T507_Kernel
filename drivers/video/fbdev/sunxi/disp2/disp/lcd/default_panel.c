@@ -83,13 +83,13 @@ static void LCD_cfg_panel_info(struct panel_extend_para *info)
 static s32 LCD_open_flow(u32 sel)
 {
 	/* open lcd power, and delay 50ms */
-	LCD_OPEN_FUNC(sel, LCD_power_on, 30);
+	LCD_OPEN_FUNC(sel, LCD_power_on, 0);
 	/* open lcd power, than delay 200ms */
-	LCD_OPEN_FUNC(sel, LCD_panel_init, 50);
+	LCD_OPEN_FUNC(sel, LCD_panel_init, 100);
 	/* open lcd controller, and delay 100ms */
-	LCD_OPEN_FUNC(sel, sunxi_lcd_tcon_enable, 100);
+	LCD_OPEN_FUNC(sel, sunxi_lcd_tcon_enable, 800);
 	/* open lcd backlight, and delay 0ms */
-	LCD_OPEN_FUNC(sel, LCD_bl_open, 0);
+	LCD_OPEN_FUNC(sel, LCD_bl_open, 0);//0解决显示先蓝屏后图像的问题，延时打开背光
 
 	return 0;
 }
@@ -144,6 +144,7 @@ static void LCD_power_off(u32 sel)
 static void LCD_bl_open(u32 sel)
 {
 	sunxi_lcd_pwm_enable(sel);
+	
 	sunxi_lcd_backlight_enable(sel);
 }
 

@@ -41,7 +41,7 @@
 #include <linux/pinctrl/consumer.h>
 
 /***************************PART1:ON/OFF define*******************************/
-#define GTP_CUSTOM_CFG        0
+#define GTP_CUSTOM_CFG        1
 #define GTP_CHANGE_X2Y        0
 #define GTP_DRIVER_SEND_CFG   0
 #define GTP_HAVE_TOUCH_KEY    0
@@ -59,11 +59,11 @@
 #define GTP_WITH_PEN          0
 #define GTP_PEN_HAVE_BUTTON   0    /* active pen has buttons, function together with GTP_WITH_PEN*/
 
-#define GTP_DEBUG_ON          0
+#define GTP_DEBUG_ON          1
 #define GTP_INFO_ON           0
-#define GTP_DEBUG_ARRAY_ON    0
-#define GTP_DEBUG_FUNC_ON     0
-#define GTP_I2C_TEST          0
+#define GTP_DEBUG_ARRAY_ON    1
+#define GTP_DEBUG_FUNC_ON     1
+#define GTP_I2C_TEST          1
 
 #if GTP_COMPATIBLE_MODE
 typedef enum {

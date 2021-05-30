@@ -309,10 +309,10 @@
 			};
 
 			spi0_pins_a: spi0@0 {
-				allwinner,pins = "PC0", "PC2", "PC4", "PC15", "PC16";
+				allwinner,pins = "PC0","PC4", "PC15", "PC16";
 				allwinner,pname = "spi0_sclk", "spi0_mosi",
 						  "spi0_miso", "spi0_wp", "spi0_hold";
-				allwinner,function = "spi0";
+				allwinner,function = "io_disabled";
 				allwinner,muxsel = <4>;
 				allwinner,drive = <1>;
 				allwinner,pull = <0>;
@@ -328,7 +328,7 @@
 			};
 
 			spi0_pins_c: spi0@2 {
-				allwinner,pins = "PC0", "PC2", "PC3", "PC4", "PC7",
+				allwinner,pins = "PC0","PC3", "PC4", "PC7",
 					"PC15", "PC16";
 				allwinner,function = "io_disabled";
 				allwinner,muxsel = <7>;
@@ -470,7 +470,7 @@
 
 			/* this set of daudio0 pins is used for t507 board */
 			ahub_daudio0_pins_a: ahub_daudio0@0 {
-				allwinner,pins = "PA6", "PA7", "PA8", "PA9";
+				allwinner,pins = "PA8", "PA9";
 				allwinner,function = "h_i2s0";
 				allwinner,muxsel = <3>;
 				allwinner,drive = <1>;
@@ -478,7 +478,7 @@
 			};
 
 			ahub_daudio0_pins_b: ahub_daudio0_sleep@0 {
-				allwinner,pins = "PA6", "PA7", "PA8", "PA9";
+				allwinner,pins = "PA8", "PA9";
 				allwinner,function = "io_disabled";
 				allwinner,muxsel = <7>;
 				allwinner,drive = <1>;
@@ -581,6 +581,7 @@
 				allwinner,drive = <2>;
 				allwinner,pull = <0>;
 			};
+		
 			csi_cci0_pins_a: csi_cci0@0 {
 				allwinner,pins = "PG17","PG18";
 				allwinner,pname = "csi_cci0_sck","csi_cci0_sda";
@@ -597,6 +598,7 @@
 				allwinner,drive = <2>;
 				allwinner,pull = <0>;
 			};
+			
 			csi_mclk1_pins_a: csi_mclk1@0 {
 				allwinner,pins = "PE1";
 				allwinner,pname = "csi_mclk1";
@@ -687,7 +689,7 @@
 			};
 
 			nand0_pins_a: nand0@0 {
-				allwinner,pins = "PC0", "PC1", "PC2", "PC5",
+				allwinner,pins = "PC0", "PC1", "PC5",
 						 "PC16", "PC15", "PC14", "PC13",
 						 "PC11", "PC10", "PC9", "PC8",
 						 "PC12";
@@ -695,7 +697,7 @@
 						 "nand0_d0", "nand0_d1", "nand0_d2", "nand0_d3",
 						 "nand0_d4", "nand0_d5", "nand0_d6", "nand0_d7",
 						 "nand0_ndqs";
-				allwinner,function = "nand0";
+				allwinner,function = "io_disabled";
 				allwinner,muxsel = <2>;
 				allwinner,drive = <1>;
 				allwinner,pull = <0>;
@@ -704,14 +706,14 @@
 			nand0_pins_b: nand0@1 {
 				allwinner,pins = "PC4", "PC6", "PC3", "PC7";
 				allwinner,pname= "nand0_ce0", "nand0_rb0", "nand0_ce1", "nand0_rb1";
-				allwinner,function = "nand0";
+				allwinner,function = "io_disabled";
 				allwinner,muxsel = <2>;
 				allwinner,drive = <1>;
 				allwinner,pull = <1>;// only RB&CE should be pulled up
 			};
 
 			nand0_pins_c: nand0@2 {
-				allwinner,pins = "PC0", "PC1", "PC2", "PC3",
+				allwinner,pins = "PC0", "PC1", "PC3",
 						 "PC4", "PC5", "PC6", "PC7",
 						 "PC8", "PC9", "PC10", "PC11",
 						 "PC12", "PC13", "PC14", "PC15",
@@ -764,8 +766,7 @@
 
 			gmac1_pins_a: gmac1@0 {
 				allwinner,pins = "PA0", "PA1", "PA2", "PA3",
-						 "PA4", "PA5", "PA6", "PA7",
-						 "PA8", "PA9";
+						 "PA5","PA8", "PA9";
 				allwinner,function = "gmac1";
 				allwinner,muxsel = <2>;
 				allwinner,drive = <3>;
@@ -774,8 +775,7 @@
 
 			gmac1_pins_b: gmac1@1 {
 				allwinner,pins = "PA0", "PA1", "PA2", "PA3",
-						 "PA4", "PA5", "PA6", "PA7",
-						 "PA8", "PA9";
+						 "PA5", "PA8", "PA9";
 				allwinner,function = "io_disabled";
 				allwinner,muxsel = <7>;
 				allwinner,drive = <3>;

@@ -27,5 +27,6 @@ obj-y			+= nvp6324/
 obj-y			+= nvp6158/
 obj-y			+= max9286_mipi.o
 obj-y			+= rn6854m_mipi.o
+obj-y			+= rn6864m_mipi.o
 #obj-m			+= tp9950.o
 #obj-m			+= sc2232_mipi.o

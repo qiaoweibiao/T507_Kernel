@@ -27,6 +27,17 @@
 #include <linux/sched/rt.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/fs.h>
+#include <linux/init.h>
+#include <linux/vmalloc.h>
+
+#define __MYDEBUG__
+#ifdef __MYDEBUG__
+#define filename(x) strrchr(x, '/') ? strrchr(x, '/') + 1 : x
+#define MYDEBUG(format, args...) (printk("[INFO]:%s--%s() line:%04d: " format "\n", filename(__FILE__), __FUNCTION__, __LINE__, ##args))
+#else
+#define MYDEBUG(format, ...)
+#endif
 
 #if (defined CONFIG_SUNXI_DI && defined CONFIG_ARCH_SUN8IW17)
 
@@ -34,52 +45,58 @@
 
 #define ALIGN_16B(x) (((x) + (15)) & ~(15))
 
-enum __di_pixel_fmt_t {
-	DI_FORMAT_NV12 = 0x00,	/* 2-plane */
-	DI_FORMAT_NV21 = 0x01,	/* 2-plane */
-	DI_FORMAT_MB32_12 = 0x02, /* NOT SUPPORTED, UV mapping like NV12 */
-	DI_FORMAT_MB32_21 = 0x03, /* NOT SUPPORTED, UV mapping like NV21 */
-	DI_FORMAT_YV12 = 0x04,	/* 3-plane */
+enum __di_pixel_fmt_t
+{
+	DI_FORMAT_NV12 = 0x00,			 /* 2-plane */
+	DI_FORMAT_NV21 = 0x01,			 /* 2-plane */
+	DI_FORMAT_MB32_12 = 0x02,		 /* NOT SUPPORTED, UV mapping like NV12 */
+	DI_FORMAT_MB32_21 = 0x03,		 /* NOT SUPPORTED, UV mapping like NV21 */
+	DI_FORMAT_YV12 = 0x04,			 /* 3-plane */
 	DI_FORMAT_YUV422_SP_UVUV = 0x08, /* 2-plane, New in DI_V2.2 */
 	DI_FORMAT_YUV422_SP_VUVU = 0x09, /* 2-plane, New in DI_V2.2 */
-	DI_FORMAT_YUV422P = 0x0c,	/* 3-plane, New in DI_V2.2 */
+	DI_FORMAT_YUV422P = 0x0c,		 /* 3-plane, New in DI_V2.2 */
 	DI_FORMAT_MAX,
 };
 
-enum __di_intp_mode_t {
-	DI_MODE_WEAVE = 0x0, /* Copy source to destination */
-	DI_MODE_INTP = 0x1, /* Use current field to interpolate another field */
+enum __di_intp_mode_t
+{
+	DI_MODE_WEAVE = 0x0,  /* Copy source to destination */
+	DI_MODE_INTP = 0x1,	  /* Use current field to interpolate another field */
 	DI_MODE_MOTION = 0x2, /* Use 4-field to interpolate another field */
 };
 
-enum __di_updmode_t {
+enum __di_updmode_t
+{
 	DI_UPDMODE_FIELD = 0x0, /* Output 2 frames when updated 1 input frame */
 	DI_UPDMODE_FRAME = 0x1, /* Output 1 frame when updated 1 input frame */
 };
 
-struct __di_rectsz_t {
+struct __di_rectsz_t
+{
 	unsigned int width;
 	unsigned int height;
 };
 
-struct __di_fb_t {
-	void *addr[2];		/* frame buffer address */
+struct __di_fb_t
+{
+	void *addr[2];			   /* frame buffer address */
 	struct __di_rectsz_t size; /* size pixel */
 	enum __di_pixel_fmt_t format;
 };
 
-struct __di_para_t {
-	struct __di_fb_t input_fb;	/* current frame fb */
-	struct __di_fb_t pre_fb;	/* previous frame fb */
+struct __di_para_t
+{
+	struct __di_fb_t input_fb;		  /* current frame fb */
+	struct __di_fb_t pre_fb;		  /* previous frame fb */
 	struct __di_rectsz_t source_regn; /* current frame and
 					* previous frame process region
 					*/
-	struct __di_fb_t output_fb;/* output frame fb */
-	struct __di_rectsz_t out_regn;	/* output frame region */
-	__u32 field;			/* process field <0-top field ;
+	struct __di_fb_t output_fb;		  /* output frame fb */
+	struct __di_rectsz_t out_regn;	  /* output frame region */
+	__u32 field;					  /* process field <0-top field ;
 					*1-bottom field>
 					*/
-	__u32 top_field_first;		/*video information <0-is not
+	__u32 top_field_first;			  /*video information <0-is not
 					*top_field_first;1-is top_
 					*field_first>
 					*/
@@ -100,7 +117,8 @@ struct __di_para_t {
  * @addr[out]: address for each plane
  * @trd_addr[out]: address for each plane of right eye buffer
  */
-struct di_format_attr {
+struct di_format_attr
+{
 	enum __di_pixel_fmt_t format;
 	unsigned int bits;
 	unsigned int hor_rsample_u;
@@ -113,23 +131,25 @@ struct di_format_attr {
 	unsigned int div;
 };
 
-struct __di_fb_t2 {
+struct __di_fb_t2
+{
 	int fd;
 	unsigned long long addr[3]; /* frame buffer address */
-	struct __di_rectsz_t size;  /* size (in pixel) */
+	struct __di_rectsz_t size;	/* size (in pixel) */
 	enum __di_pixel_fmt_t format;
 };
 
-struct __di_para_t2 {
-	struct __di_fb_t2 input_fb;/* current frame fb */
-	struct __di_fb_t2 pre_fb;	 /* previous frame fb */
-	struct __di_fb_t2 next_fb;	/* next frame fb */
+struct __di_para_t2
+{
+	struct __di_fb_t2 input_fb;		  /* current frame fb */
+	struct __di_fb_t2 pre_fb;		  /* previous frame fb */
+	struct __di_fb_t2 next_fb;		  /* next frame fb */
 	struct __di_rectsz_t source_regn; /* current frame /previous frame and
 						next frame process region */
-	struct __di_fb_t2 output_fb;	/* output frame fb */
-	struct __di_rectsz_t out_regn;	/* output frame region */
-	unsigned int field; /* process field <0-first field ; 1-second field> */
-	unsigned int top_field_first; /* video infomation <0-is not
+	struct __di_fb_t2 output_fb;	  /* output frame fb */
+	struct __di_rectsz_t out_regn;	  /* output frame region */
+	unsigned int field;				  /* process field <0-first field ; 1-second field> */
+	unsigned int top_field_first;	  /* video infomation <0-is not
 				top_field_first; 1-is top_field_first> */
 	/* unsigned int update_mode; */
 	/* update buffer mode <0-update 1 frame,
@@ -139,12 +159,14 @@ struct __di_para_t2 {
 };
 
 /* New in DI_2.X */
-struct __di_mode_t {
+struct __di_mode_t
+{
 	enum __di_intp_mode_t di_mode;
 	enum __di_updmode_t update_mode;
 };
 
-struct __di_mem_t {
+struct __di_mem_t
+{
 	unsigned int size;
 	void *v_addr;
 	unsigned long p_addr;
@@ -180,7 +202,12 @@ static struct buffer_node *new_frame, *old_frame, *oold_frame;
 #define CAR_REVSER_GPIO_LEVEL 1
 /*#define USE_YUV422*/
 #undef USE_YUV422
-struct car_reverse_private_data {
+
+#define FILE_WATCH
+
+
+struct car_reverse_private_data
+{
 	struct preview_params config;
 	int reverse_gpio;
 
@@ -192,6 +219,7 @@ struct car_reverse_private_data {
 	struct work_struct status_detect;
 	struct workqueue_struct *preview_workqueue;
 
+	struct task_struct *file_watch_del;
 	struct task_struct *display_update_task;
 	struct task_struct *display_frame_task;
 	struct task_struct *display_view_task;
@@ -231,7 +259,7 @@ module_param(rotate, int, 0644);
 static struct car_reverse_private_data *car_reverse;
 
 #define UPDATE_STATE 1
-#if defined(UPDATE_STATE) &&		\
+#if defined(UPDATE_STATE) && \
 	(defined(CONFIG_SWITCH) || defined(CONFIG_ANDROID_SWITCH))
 static ssize_t print_dev_name(struct switch_dev *sdev, char *buf)
 {
@@ -239,7 +267,9 @@ static ssize_t print_dev_name(struct switch_dev *sdev, char *buf)
 }
 
 static struct switch_dev car_reverse_switch = {
-	.name = "parking-switch", .state = 0, .print_name = print_dev_name,
+	.name = "parking-switch",
+	.state = 0,
+	.print_name = print_dev_name,
 };
 
 static void car_reverse_switch_register(void)
@@ -271,44 +301,46 @@ static void car_reverse_switch_unregister(void)
 #endif
 
 static void of_get_value_by_name(struct platform_device *pdev, const char *name,
-				 int *retval, unsigned int defval)
+								 int *retval, unsigned int defval)
 {
-	if (of_property_read_u32(pdev->dev.of_node, name, retval) != 0) {
+	if (of_property_read_u32(pdev->dev.of_node, name, retval) != 0)
+	{
 		dev_err(&pdev->dev, "missing property '%s', default value %d\n",
-			name, defval);
+				name, defval);
 		*retval = defval;
 	}
 }
 
 static void of_get_gpio_by_name(struct platform_device *pdev, const char *name,
-				int *retval)
+								int *retval)
 {
 	int gpio_index;
 	struct gpio_config config;
 
 	gpio_index = of_get_named_gpio_flags(pdev->dev.of_node, name, 0,
-						 (enum of_gpio_flags *)&config);
-	if (!gpio_is_valid(gpio_index)) {
+										 (enum of_gpio_flags *)&config);
+	if (!gpio_is_valid(gpio_index))
+	{
 		dev_err(&pdev->dev, "failed to get gpio '%s'\n", name);
 		*retval = 0;
 		return;
 	}
 	*retval = gpio_index;
 
-	dev_info(&pdev->dev,
-		 "%s: gpio=%d mul-sel=%d pull=%d drv_level=%d data=%d\n", name,
-		 config.gpio, config.mul_sel, config.pull, config.drv_level,
-		 config.data);
+	dev_err(&pdev->dev,
+			 "%s: gpio=%d mul-sel=%d pull=%d drv_level=%d data=%d\n", name,
+			 config.gpio, config.mul_sel, config.pull, config.drv_level,
+			 config.data);
 }
 
 static void parse_config(struct platform_device *pdev,
-			 struct car_reverse_private_data *priv)
+						 struct car_reverse_private_data *priv)
 {
 	of_get_value_by_name(pdev, "tvd_id", &priv->config.tvd_id, 0);
 	of_get_value_by_name(pdev, "screen_width", &priv->config.screen_width,
-				0);
+						 0);
 	of_get_value_by_name(pdev, "screen_height", &priv->config.screen_height,
-				0);
+						 0);
 	of_get_value_by_name(pdev, "rotation", &priv->config.rotation, 0);
 	of_get_value_by_name(pdev, "source", &priv->config.input_src, 0);
 	of_get_value_by_name(pdev, "oview", &priv->used_oview, 0);
@@ -325,96 +357,121 @@ void car_reverse_display_update(int tvd_fd)
 
 	spin_lock(&car_reverse->display_lock);
 
-	if (car_reverse->used_oview) {
+	if (car_reverse->used_oview)
+	{
 		tmp = car_reverse->sync_w - car_reverse->sync_r;
-		if ((car_reverse->ov_sync & (1 << tvd_fd)) || tmp > 3) {
-			for (n = 0; n < CAR_MAX_CH; n++) {
+		if ((car_reverse->ov_sync & (1 << tvd_fd)) || tmp > 3)
+		{
+			for (n = 0; n < CAR_MAX_CH; n++)
+			{
 				if (car_reverse->config.input_src)
 					node =
-				video_source_dequeue_buffer_vin(n);
-				else {
-				#ifdef VIDEO_SUNXI_TVD_SPECIAL
-				node = video_source_dequeue_buffer(n);
-				#endif
+						video_source_dequeue_buffer_vin(n);
+				else
+				{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
+					node = video_source_dequeue_buffer(n);
+#endif
 				}
-				if (node) {
+				if (node)
+				{
 					if (car_reverse->config.input_src)
 						video_source_queue_buffer_vin(
 							node, n);
-					else {
-						#ifdef VIDEO_SUNXI_TVD_SPECIAL
+					else
+					{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
 						video_source_queue_buffer(node,
-						n);
-						#endif
-						}
+												  n);
+#endif
+					}
 				}
 			}
 			car_reverse->ov_sync = 0;
-		} else {
+		}
+		else
+		{
 			car_reverse->ov_sync |= (1 << tvd_fd);
-			if ((car_reverse->ov_sync & 0xf) == 0xf) {
+			if ((car_reverse->ov_sync & 0xf) == 0xf)
+			{
 				run_thread = 1;
 				car_reverse->ov_sync = 0;
 			}
 		}
 	}
-	if (!car_reverse->used_oview) {
-		while (!list_empty(pending_frame)) {
+	if (!car_reverse->used_oview)
+	{
+		while (!list_empty(pending_frame))
+		{
 			node = list_entry(pending_frame->next,
-			struct buffer_node, list);
+							  struct buffer_node, list);
 			list_del(&node->list);
 			if (car_reverse->config.input_src)
-			video_source_queue_buffer_vin(node, tvd_fd);
-			else {
-				#ifdef VIDEO_SUNXI_TVD_SPECIAL
+				video_source_queue_buffer_vin(node, tvd_fd);
+			else
+			{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
 				video_source_queue_buffer(node, tvd_fd);
-				#endif
-				}
+#endif
+			}
 		}
 		if (car_reverse->config.input_src)
 			node = video_source_dequeue_buffer_vin(tvd_fd);
-		else {
-			#ifdef VIDEO_SUNXI_TVD_SPECIAL
+		else
+		{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
 			node = video_source_dequeue_buffer(tvd_fd);
-			#endif
-			}
-		if (node) {
+#endif
+		}
+		if (node)
+		{
 			list_add(&node->list, pending_frame);
 		}
-	} else {
-		if (run_thread) {
-			for (n = 0; n < CAR_MAX_CH; n++) {
+	}
+	else
+	{
+		if (run_thread)
+		{
+			for (n = 0; n < CAR_MAX_CH; n++)
+			{
 				pending_frame =
-				&car_reverse->pending_frameOv[n];
+					&car_reverse->pending_frameOv[n];
 				if (car_reverse->config.input_src)
-				node =
-				video_source_dequeue_buffer_vin(n);
-				else {
-				#ifdef VIDEO_SUNXI_TVD_SPECIAL
-				node = video_source_dequeue_buffer(n);
-				#endif
+					node =
+						video_source_dequeue_buffer_vin(n);
+				else
+				{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
+					node = video_source_dequeue_buffer(n);
+#endif
 				}
-				if (node) {
-				list_add(&node->list, pending_frame);
+				if (node)
+				{
+					list_add(&node->list, pending_frame);
 				}
 			}
 		}
 	}
 	spin_unlock(&car_reverse->display_lock);
 
-	if (car_reverse->used_oview) {
-		if (run_thread) {
+	if (car_reverse->used_oview)
+	{
+		if (run_thread)
+		{
 			if (car_reverse->display_update_task)
-			wake_up_process(
-			car_reverse->display_update_task);
+				wake_up_process(
+					car_reverse->display_update_task);
 			car_reverse->thread_mask |= THREAD_RUN;
 			car_reverse->sync_w++;
 			run_thread = 0;
 		}
-	} else {
+	}
+	else
+	{
 
 		spin_lock(&car_reverse->thread_lock);
-		if (car_reverse->thread_mask & THREAD_NEED_STOP) {
+		if (car_reverse->thread_mask & THREAD_NEED_STOP)
+		{
 			spin_unlock(&car_reverse->thread_lock);
 			return;
 		}
@@ -430,38 +487,47 @@ void car_do_freemem(struct work_struct *work)
 	int i = 0;
 	struct buffer_pool *bp = 0;
 	spin_lock(&car_reverse->free_lock);
-	if (car_reverse->needfree) {
-		if (car_reverse->buffer_pool) {
+	if (car_reverse->needfree)
+	{
+		if (car_reverse->buffer_pool)
+		{
 			free_buffer_pool(car_reverse->config.dev,
-				car_reverse->buffer_pool);
+							 car_reverse->buffer_pool);
 			car_reverse->buffer_pool = 0;
 		}
-		for (i = 0; i < CAR_MAX_CH; i++) {
+		for (i = 0; i < CAR_MAX_CH; i++)
+		{
 			bp = car_reverse->bufferOv_pool[i];
-			if (bp) {
+			if (bp)
+			{
 				free_buffer_pool(car_reverse->config.dev, bp);
 				car_reverse->bufferOv_pool[i] = 0;
 			}
 			bp = car_reverse->bufferOv_preview[i];
-			if (bp) {
+			if (bp)
+			{
 				free_buffer_pool(car_reverse->config.dev, bp);
 				car_reverse->bufferOv_preview[i] = 0;
 			}
 		}
-		if (car_reverse->config.input_src == 0) {
-			if (car_reverse->buffer_disp[0]) {
+		if (car_reverse->config.input_src == 0)
+		{
+			if (car_reverse->buffer_disp[0])
+			{
 				__buffer_node_free(car_reverse->config.dev,
-				car_reverse->buffer_disp[0]);
+								   car_reverse->buffer_disp[0]);
 				car_reverse->buffer_disp[0] = 0;
 			}
-			if (car_reverse->buffer_disp[1]) {
+			if (car_reverse->buffer_disp[1])
+			{
 				__buffer_node_free(car_reverse->config.dev,
-				car_reverse->buffer_disp[1]);
+								   car_reverse->buffer_disp[1]);
 				car_reverse->buffer_disp[1] = 0;
 			}
 		}
 		logerror("car_reverse free buffer\n");
-	} else
+	}
+	else
 		logdebug("no need free buffer! \n");
 	spin_unlock(&car_reverse->free_lock);
 }
@@ -476,95 +542,111 @@ int algo_frame_work(void *data)
 	int tmp = 0;
 	int count = 0;
 	struct buffer_node *new_frameOv[CAR_MAX_CH];
-	while (!kthread_should_stop()) {
+	while (!kthread_should_stop())
+	{
 		car_reverse->algo_mask = 0;
-		if (car_reverse->algo_thread_start) {
+		if (car_reverse->algo_thread_start)
+		{
 			tmp = car_reverse->ov_sync_frame -
-			car_reverse->ov_sync_algo;
+				  car_reverse->ov_sync_algo;
 			if (car_reverse->ov_sync_frame >
-				car_reverse->ov_sync_algo) {
-				for (i = 0; i < CAR_MAX_CH; i++) {
-				new_frameOv[i] = 0;
-				bp = car_reverse->bufferOv_pool[i];
+				car_reverse->ov_sync_algo)
+			{
+				for (i = 0; i < CAR_MAX_CH; i++)
+				{
+					new_frameOv[i] = 0;
+					bp = car_reverse->bufferOv_pool[i];
 					if (bp)
-				new_frameOv[i] =
-				bp->dequeue_buffer(bp);
+						new_frameOv[i] =
+							bp->dequeue_buffer(bp);
 				}
-				if (tmp <= 4) {
+				if (tmp <= 4)
+				{
 					if (new_frameOv[0] && new_frameOv[1] &&
-					new_frameOv[2] && new_frameOv[3] &&
-					count) {
-					preview_update_Ov(
-					new_frameOv,
-					car_reverse->config
-					.car_direct,
-					car_reverse->config
-					.lr_direct);
+						new_frameOv[2] && new_frameOv[3] &&
+						count)
+					{
+						preview_update_Ov(
+							new_frameOv,
+							car_reverse->config
+								.car_direct,
+							car_reverse->config
+								.lr_direct);
 					}
 
 					if (count >= 3)
-					count = 0;
+						count = 0;
 					else
-					count++;
+						count++;
 
-					for (i = 0; i < CAR_MAX_CH; i++) {
-					bp_preview =
-					car_reverse
-					->bufferOv_preview[i];
-					if (new_frameOv[i]) {
-					if (car_reverse
-					->display_view_task)
-					bp_preview
-					->queue_buffer(
-					bp_preview,
-					new_frameOv
-					[i]);
-					else {
-					video_source_queue_buffer_vin(
-					new_frameOv
-					[i],
-					i);
-					}
-					}
+					for (i = 0; i < CAR_MAX_CH; i++)
+					{
+						bp_preview =
+							car_reverse
+								->bufferOv_preview[i];
+						if (new_frameOv[i])
+						{
+							if (car_reverse
+									->display_view_task)
+								bp_preview
+									->queue_buffer(
+										bp_preview,
+										new_frameOv
+											[i]);
+							else
+							{
+								video_source_queue_buffer_vin(
+									new_frameOv
+										[i],
+									i);
+							}
+						}
 					}
 					car_reverse->ov_sync_algo++;
-				} else {
-				while (tmp > 0 &&
-					!kthread_should_stop()) {
+				}
+				else
+				{
+					while (tmp > 0 &&
+						   !kthread_should_stop())
+					{
 
-			for (i = 0; i < CAR_MAX_CH;
-				i++) {
-				new_frameOv[i] = 0;
-				bp = car_reverse
-				->bufferOv_pool
-				[i];
-				if (bp)
-				new_frameOv[i] =
-				bp->dequeue_buffer(
-				bp);
-				if (new_frameOv[i]) {
-				video_source_queue_buffer_vin(
-				new_frameOv
-				[i],
-				i);
-				}
-				}
-				car_reverse->ov_sync_algo++;
-				tmp =
-				car_reverse->ov_sync_frame -
-				car_reverse->ov_sync_algo;
-				schedule_timeout(HZ / 10000);
+						for (i = 0; i < CAR_MAX_CH;
+							 i++)
+						{
+							new_frameOv[i] = 0;
+							bp = car_reverse
+									 ->bufferOv_pool
+										 [i];
+							if (bp)
+								new_frameOv[i] =
+									bp->dequeue_buffer(
+										bp);
+							if (new_frameOv[i])
+							{
+								video_source_queue_buffer_vin(
+									new_frameOv
+										[i],
+									i);
+							}
+						}
+						car_reverse->ov_sync_algo++;
+						tmp =
+							car_reverse->ov_sync_frame -
+							car_reverse->ov_sync_algo;
+						schedule_timeout(HZ / 10000);
+					}
 				}
 			}
-		}
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (kthread_should_stop())
 			set_current_state(TASK_RUNNING);
-		if (!car_reverse->algo_thread_start) {
+		if (!car_reverse->algo_thread_start)
+		{
 			car_reverse->algo_mask = 1;
 			schedule();
-		} else
+		}
+		else
 			schedule_timeout(HZ / 10000);
 	}
 	return 0;
@@ -575,32 +657,40 @@ int display_view_work(void *data)
 	struct buffer_pool *bp_preview = 0;
 	struct buffer_node *frameOv[4];
 	int i = 0;
-	while (!kthread_should_stop()) {
-		if (car_reverse->view_thread_start) {
+	while (!kthread_should_stop())
+	{
+		if (car_reverse->view_thread_start)
+		{
 			car_reverse->view_mask = 0;
 			display_frame_work();
-			for (i = 0; i < CAR_MAX_CH; i++) {
-			bp_preview = car_reverse->bufferOv_preview[i];
-			frameOv[i] =
-			bp_preview->dequeue_buffer(bp_preview);
-				if (frameOv[i]) {
-			video_source_queue_buffer_vin(
-			frameOv[i], i);
+			for (i = 0; i < CAR_MAX_CH; i++)
+			{
+				bp_preview = car_reverse->bufferOv_preview[i];
+				frameOv[i] =
+					bp_preview->dequeue_buffer(bp_preview);
+				if (frameOv[i])
+				{
+					video_source_queue_buffer_vin(
+						frameOv[i], i);
 				}
 			}
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (kthread_should_stop())
 			set_current_state(TASK_RUNNING);
-		if (!car_reverse->view_thread_start) {
+		if (!car_reverse->view_thread_start)
+		{
 			car_reverse->view_mask = 1;
 			schedule();
-		} else
+		}
+		else
 			schedule_timeout(HZ / 10000);
 	}
 	return 0;
 }
 
+
+static int it_times = 0;
 static int display_update_thread(void *data)
 {
 	struct list_head *pending_frame = &car_reverse->pending_frame;
@@ -617,74 +707,94 @@ static int display_update_thread(void *data)
 	new_frame = NULL;
 	old_frame = NULL;
 	oold_frame = NULL;
-	while (!kthread_should_stop()) {
+
+	while (!kthread_should_stop())
+	{
+		// dev_err(car_reverse->config.dev, "%d enter display_update_thread while, the times os interupts is %d ...\n", __LINE__,it_times);	
 		bp = car_reverse->buffer_pool;
-		if (!car_reverse->used_oview) {
+		if (!car_reverse->used_oview)
+		{
 			ret = spin_is_locked(&car_reverse->display_lock);
-			if (ret) {
+			if (ret)
+			{
 				goto disp_loop;
 			}
 		}
 		if (!car_reverse->used_oview)
 			spin_lock(&car_reverse->display_lock);
-		if (car_reverse->config.input_src && car_reverse->used_oview) {
-			if (car_reverse->sync_w != car_reverse->sync_r) {
+		if (car_reverse->config.input_src && car_reverse->used_oview)
+		{
+			if (car_reverse->sync_w != car_reverse->sync_r)
+			{
 				car_reverse->sync_r++;
-				for (i = 0; i < CAR_MAX_CH; i++) {
-			new_frameOv[i] = NULL;
-			pending_frame =
-			&car_reverse->pending_frameOv[i];
-			bp = car_reverse->bufferOv_pool[i];
-			if (pending_frame->next !=
-			pending_frame) {
-			new_frameOv[i] = list_entry(
-				pending_frame->next,
-				struct buffer_node, list);
-				list_del(&new_frameOv[i]->list);
-				bp->queue_buffer(
-				bp, new_frameOv[i]);
-				}
+				for (i = 0; i < CAR_MAX_CH; i++)
+				{
+					new_frameOv[i] = NULL;
+					pending_frame =
+						&car_reverse->pending_frameOv[i];
+					bp = car_reverse->bufferOv_pool[i];
+					if (pending_frame->next !=
+						pending_frame)
+					{
+						new_frameOv[i] = list_entry(
+							pending_frame->next,
+							struct buffer_node, list);
+						list_del(&new_frameOv[i]->list);
+						bp->queue_buffer(
+							bp, new_frameOv[i]);
+					}
 				}
 				car_reverse->ov_sync_frame++;
 			}
-		} else {
-			if (pending_frame->next != pending_frame) {
+		}
+		else
+		{
+			if (pending_frame->next != pending_frame)
+			{
 				new_frame =
 					list_entry(pending_frame->next,
-					struct buffer_node, list);
+							   struct buffer_node, list);
 				list_del(&new_frame->list);
 				bp->queue_buffer(bp, new_frame);
 			}
 		}
 #ifdef USE_SUNXI_DI_MODULE
-		if (car_reverse->config.input_src) {
-			if (!car_reverse->used_oview) {
+		if (car_reverse->config.input_src)
+		{
+			if (!car_reverse->used_oview)
+			{
 				old_frame = bp->dequeue_buffer(bp);
 				list_add(&old_frame->list, pending_frame);
 				spin_unlock(&car_reverse->display_lock);
 				preview_update(new_frame,
-				car_reverse->config.car_direct,
-				car_reverse->config.lr_direct);
+							   car_reverse->config.car_direct,
+							   car_reverse->config.lr_direct);
 			}
-		} else {
-			if (old_frame) {
+		}
+		else
+		{
+			if (old_frame)
+			{
 				oold_frame = old_frame;
 				old_frame = bp->dequeue_buffer(bp);
-			} else {
+			}
+			else
+			{
 				old_frame = bp->dequeue_buffer(bp);
 			}
 			spin_unlock(&car_reverse->display_lock);
-			if (oold_frame && old_frame && new_frame) {
+			if (oold_frame && old_frame && new_frame)
+			{
 				src_height = car_reverse->config.src_height;
 				src_width = car_reverse->config.src_width;
 				dst_width = src_width;
 				dst_height = src_height;
 				di_para.pre_fb.addr[0] =
 					*(unsigned long long *)(&(
-					oold_frame->phy_address));
+						oold_frame->phy_address));
 				di_para.pre_fb.addr[1] =
 					*(unsigned long long *)(&(
-					oold_frame->phy_address)) +
+						oold_frame->phy_address)) +
 					ALIGN_16B(src_width) * src_height;
 				di_para.pre_fb.addr[2] = 0x0;
 				di_para.pre_fb.size.width = src_width;
@@ -698,10 +808,10 @@ static int display_update_thread(void *data)
 
 				di_para.input_fb.addr[0] =
 					*(unsigned long long *)(&(
-					old_frame->phy_address));
+						old_frame->phy_address));
 				di_para.input_fb.addr[1] =
 					*(unsigned long long *)(&(
-					old_frame->phy_address)) +
+						old_frame->phy_address)) +
 					ALIGN_16B(src_width) * src_height;
 				di_para.input_fb.addr[2] = 0x0;
 				di_para.input_fb.size.width = src_width;
@@ -716,10 +826,10 @@ static int display_update_thread(void *data)
 
 				di_para.next_fb.addr[0] =
 					*(unsigned long long *)(&(
-					new_frame->phy_address));
+						new_frame->phy_address));
 				di_para.next_fb.addr[1] =
 					*(unsigned long long *)(&(
-					new_frame->phy_address)) +
+						new_frame->phy_address)) +
 					ALIGN_16B(src_width) * src_height;
 				di_para.next_fb.addr[2] = 0x0;
 				di_para.next_fb.size.width = src_width;
@@ -737,14 +847,14 @@ static int display_update_thread(void *data)
 				di_para.output_fb.addr[0] = *(
 					unsigned long long *)(&(
 					car_reverse
-					->buffer_disp[car_reverse->disp_index]
-					->phy_address));
+						->buffer_disp[car_reverse->disp_index]
+						->phy_address));
 				di_para.output_fb.addr[1] =
 					*(unsigned long long *)(&(
-					car_reverse
-						->buffer_disp[car_reverse
-								  ->disp_index]
-						->phy_address)) +
+						car_reverse
+							->buffer_disp[car_reverse
+											  ->disp_index]
+							->phy_address)) +
 					ALIGN_16B(dst_width) * dst_height;
 				di_para.output_fb.addr[2] = 0x0;
 				di_para.output_fb.size.width = dst_width;
@@ -770,20 +880,24 @@ static int display_update_thread(void *data)
 				di_para.id = di_id;
 				di_para.dma_if = 1;
 				sunxi_di_commit(&di_para, &car_file);
-				if (oold_frame) {
+				if (oold_frame)
+				{
 					spin_lock(&car_reverse->display_lock);
 					list_add(&oold_frame->list,
-						 pending_frame);
+							 pending_frame);
 					spin_unlock(&car_reverse->display_lock);
 				}
-				if (car_reverse->discard_frame != 0) {
+				if (car_reverse->discard_frame != 0)
+				{
 					car_reverse->discard_frame--;
-				} else
+				}
+				else
 					car_reverse->discard_frame = 0;
-				if (car_reverse->discard_frame == 0) {
+				if (car_reverse->discard_frame == 0)
+				{
 					preview_update(
 						car_reverse->buffer_disp
-						[car_reverse->disp_index],
+							[car_reverse->disp_index],
 						car_reverse->config.car_direct,
 						car_reverse->config.lr_direct);
 				}
@@ -791,11 +905,12 @@ static int display_update_thread(void *data)
 					car_reverse->disp_index = 0;
 				else
 					car_reverse->disp_index = 1;
-
-			} else {
+			}
+			else
+			{
 				preview_update(new_frame,
-					car_reverse->config.car_direct,
-					car_reverse->config.lr_direct);
+							   car_reverse->config.car_direct,
+							   car_reverse->config.lr_direct);
 			}
 		}
 #else
@@ -803,16 +918,19 @@ static int display_update_thread(void *data)
 		list_add(&old_frame->list, pending_frame);
 		spin_unlock(&car_reverse->display_lock);
 
-		if (car_reverse->discard_frame != 0) {
-					car_reverse->discard_frame--;
-				} else
-					car_reverse->discard_frame = 0;
-				if (car_reverse->discard_frame == 0) {
-					preview_update(
-						new_frame,
-						car_reverse->config.car_direct,
-						car_reverse->config.lr_direct);
-				}
+		if (car_reverse->discard_frame != 0)
+		{
+			car_reverse->discard_frame--;
+		}
+		else
+			car_reverse->discard_frame = 0;
+		if (car_reverse->discard_frame == 0)
+		{
+			preview_update(
+				new_frame,
+				car_reverse->config.car_direct,
+				car_reverse->config.lr_direct);
+		}
 /*		preview_update(new_frame, car_reverse->config.car_direct,
 				car_reverse->config.lr_direct);*/
 #endif
@@ -820,17 +938,22 @@ static int display_update_thread(void *data)
 	disp_loop:
 
 		car_reverse->thread_mask &= (~THREAD_RUN);
-		if (car_reverse->config.input_src && car_reverse->used_oview) {
+		if (car_reverse->config.input_src && car_reverse->used_oview)
+		{
 			if (car_reverse->sync_w == car_reverse->sync_r)
 				schedule();
 			else
 				schedule_timeout(HZ / 10000);
-			if (kthread_should_stop()) {
+			if (kthread_should_stop())
+			{
 				break;
 			}
-		} else {
+		}
+		else
+		{
 			set_current_state(TASK_INTERRUPTIBLE);
-			if (kthread_should_stop()) {
+			if (kthread_should_stop())
+			{
 				break;
 			}
 			schedule();
@@ -854,46 +977,55 @@ static int car_reverse_preview_start(void)
 	cancel_delayed_work(&car_freework);
 	car_reverse->display_update_task =
 		kthread_create(display_update_thread, NULL, "sunxi-preview");
-	if (!car_reverse->display_update_task) {
+	if (!car_reverse->display_update_task)
+	{
 		printk(KERN_ERR "failed to create kthread\n");
 		return -1;
 	}
 	/* FIXME: Calculate buffer size by preview info */
 	//spin_lock(&car_reverse->free_lock);
-	if (car_reverse->config.input_src) {
-		if (car_reverse->buffer_pool == 0 && !car_reverse->used_oview) {
+	if (car_reverse->config.input_src)
+	{
+		if (car_reverse->buffer_pool == 0 && !car_reverse->used_oview)
+		{
 			car_reverse->buffer_pool = alloc_buffer_pool(
 				car_reverse->config.dev, SWAP_BUFFER_CNT_VIN,
-				1280 * 720 * 2);
+				1920 * 1080 * 2);
 		}
-		if (car_reverse->used_oview) {
-			for (i = 0; i < CAR_MAX_CH; i++) {
+		if (car_reverse->used_oview)
+		{
+			for (i = 0; i < CAR_MAX_CH; i++)
+			{
 				if (car_reverse->bufferOv_pool[i] == 0 &&
-					car_reverse->used_oview) {
+					car_reverse->used_oview)
+				{
 					car_reverse->bufferOv_pool[i] =
 						alloc_buffer_pool(
-						car_reverse->config.dev,
-						SWAP_BUFFER_CNT_VIN,
-						1280 * 720 * 2);
+							car_reverse->config.dev,
+							SWAP_BUFFER_CNT_VIN,
+							1280 * 720 * 2);
 				}
 
 				if (car_reverse->bufferOv_preview[i] == 0 &&
-					car_reverse->used_oview) {
+					car_reverse->used_oview)
+				{
 					car_reverse->bufferOv_preview[i] =
-					alloc_buffer_pool(
-					car_reverse->config.dev,
-					SWAP_BUFFER_CNT_VIN, 0);
+						alloc_buffer_pool(
+							car_reverse->config.dev,
+							SWAP_BUFFER_CNT_VIN, 0);
 				}
 			}
 		}
 		car_reverse->buffer_disp[0] = 0;
 		car_reverse->buffer_disp[1] = 0;
 		buf_cnt = SWAP_BUFFER_CNT_VIN;
-	} else {
+	}
+	else
+	{
 		if (car_reverse->buffer_pool == 0)
 			car_reverse->buffer_pool =
 				alloc_buffer_pool(car_reverse->config.dev,
-						SWAP_BUFFER_CNT, 720 * 576 * 2);
+								  SWAP_BUFFER_CNT, 720 * 576 * 2);
 		if (car_reverse->buffer_disp[0] == 0)
 			car_reverse->buffer_disp[0] = __buffer_node_alloc(
 				car_reverse->config.dev, 720 * 576 * 2, 0);
@@ -903,68 +1035,82 @@ static int car_reverse_preview_start(void)
 		buf_cnt = SWAP_BUFFER_CNT;
 	}
 	//spin_unlock(&car_reverse->free_lock);
-	if (!car_reverse->buffer_pool && !car_reverse->used_oview) {
+	if (!car_reverse->buffer_pool && !car_reverse->used_oview)
+	{
 		dev_err(car_reverse->config.dev,
-			"alloc buffer memory failed\n");
+				"alloc buffer memory failed\n");
 		goto gc;
 	}
-	if (car_reverse->config.input_src && car_reverse->used_oview) {
+	if (car_reverse->config.input_src && car_reverse->used_oview)
+	{
 		if (!car_reverse->bufferOv_pool[0] ||
 			!car_reverse->bufferOv_pool[1] ||
 			!car_reverse->bufferOv_pool[2] ||
-			!car_reverse->bufferOv_pool[3]) {
+			!car_reverse->bufferOv_pool[3])
+		{
 			dev_err(car_reverse->config.dev,
-				"alloc buffer memory oview failed\n");
+					"alloc buffer memory oview failed\n");
 			goto gc;
 		}
 
 		if (!car_reverse->bufferOv_preview[0] ||
 			!car_reverse->bufferOv_preview[1] ||
 			!car_reverse->bufferOv_preview[2] ||
-			!car_reverse->bufferOv_preview[3]) {
+			!car_reverse->bufferOv_preview[3])
+		{
 			dev_err(car_reverse->config.dev,
-				"alloc buffer memory oview failed\n");
+					"alloc buffer memory oview failed\n");
 			goto gc;
 		}
 	}
 
-	if (car_reverse->config.input_src == 0) {
+	if (car_reverse->config.input_src == 0)
+	{
 		if (!car_reverse->buffer_disp[0] ||
-			!car_reverse->buffer_disp[1]) {
+			!car_reverse->buffer_disp[1])
+		{
 			dev_err(car_reverse->config.dev,
-				"alloc buffer memory failed\n");
+					"alloc buffer memory failed\n");
 			goto gc;
 		}
 	}
-	if (car_reverse->config.input_src) {
+	if (car_reverse->config.input_src)
+	{
 		car_reverse->config.format = V4L2_PIX_FMT_NV21;
-	} else {
+	}
+	else
+	{
 		if (car_reverse->format)
 			car_reverse->config.format = V4L2_PIX_FMT_NV61;
 		else
 			car_reverse->config.format = V4L2_PIX_FMT_NV21;
 	}
-	if (car_reverse->used_oview && car_reverse->config.input_src) {
+	if (car_reverse->used_oview && car_reverse->config.input_src)
+	{
 
-		for (n = 0; n < CAR_MAX_CH; n++) {
+		for (n = 0; n < CAR_MAX_CH; n++)
+		{
 			bp = car_reverse->bufferOv_pool[n];
 
 			INIT_LIST_HEAD(&car_reverse->pending_frameOv[n]);
 			retval = video_source_connect(&car_reverse->config, n);
-			if (retval != 0) {
+			if (retval != 0)
+			{
 				logerror("can't connect to video source!\n");
 				goto gc;
 			}
 
-			for (i = 0; i < buf_cnt; i++) {
+			for (i = 0; i < buf_cnt; i++)
+			{
 				node = bp->dequeue_buffer(bp);
 				if (car_reverse->config.input_src)
 					video_source_queue_buffer_vin(node, n);
-				else {
-					#ifdef VIDEO_SUNXI_TVD_SPECIAL
+				else
+				{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
 					video_source_queue_buffer(node, n);
-					#endif
-					}
+#endif
+				}
 			}
 		}
 		car_reverse->ov_sync_frame = 0;
@@ -974,7 +1120,8 @@ static int car_reverse_preview_start(void)
 
 		car_reverse->display_frame_task =
 			kthread_create(algo_frame_work, NULL, "algo-preview");
-		if (!car_reverse->display_frame_task) {
+		if (!car_reverse->display_frame_task)
+		{
 			printk(KERN_ERR "failed to create kthread\n");
 			goto gc;
 		}
@@ -988,22 +1135,25 @@ static int car_reverse_preview_start(void)
 			goto gc;
 		}
 #endif
-		if (car_reverse->display_frame_task) {
+		if (car_reverse->display_frame_task)
+		{
 			struct sched_param param = {.sched_priority =
-				MAX_RT_PRIO - 1};
+											MAX_RT_PRIO - 1};
 			set_user_nice(car_reverse->display_frame_task, -20);
 			sched_setscheduler(car_reverse->display_frame_task,
-				SCHED_FIFO, &param);
+							   SCHED_FIFO, &param);
 		}
-		if (car_reverse->display_view_task) {
+		if (car_reverse->display_view_task)
+		{
 			struct sched_param param = {.sched_priority =
-				MAX_RT_PRIO - 1};
+											MAX_RT_PRIO - 1};
 			set_user_nice(car_reverse->display_view_task, -20);
 			sched_setscheduler(car_reverse->display_view_task,
-					SCHED_FIFO, &param);
+							   SCHED_FIFO, &param);
 			car_reverse->config.viewthread = 1;
-
-		} else {
+		}
+		else
+		{
 			car_reverse->config.viewthread = 0;
 		}
 		car_reverse->view_thread_start = 1;
@@ -1015,43 +1165,50 @@ static int car_reverse_preview_start(void)
 			wake_up_process(car_reverse->display_view_task);
 
 		preview_output_start(&car_reverse->config);
-		for (n = 0; n < CAR_MAX_CH; n++) {
+		for (n = 0; n < CAR_MAX_CH; n++)
+		{
 			video_source_streamon_vin(n);
 		}
-	} else {
+	}
+	else
+	{
 		bp = car_reverse->buffer_pool;
 
 		INIT_LIST_HEAD(&car_reverse->pending_frame);
 		retval = video_source_connect(&car_reverse->config,
-			car_reverse->config.tvd_id);
-		if (retval != 0) {
+									  car_reverse->config.tvd_id);
+		if (retval != 0)
+		{
 			logerror("can't connect to video source!\n");
 			goto gc;
 		}
 		preview_output_start(&car_reverse->config);
-	//preview_update(car_reverse->buffer_disp[0],
+		//preview_update(car_reverse->buffer_disp[0],
 		//car_reverse->config.car_direct,
-				 //car_reverse->config.lr_direct);
+		//car_reverse->config.lr_direct);
 
-		for (i = 0; i < buf_cnt; i++) {
+		for (i = 0; i < buf_cnt; i++)
+		{
 			node = bp->dequeue_buffer(bp);
 			if (car_reverse->config.input_src)
 				video_source_queue_buffer_vin(
 					node, car_reverse->config.tvd_id);
-			else {
-				#ifdef VIDEO_SUNXI_TVD_SPECIAL
+			else
+			{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
 				video_source_queue_buffer(
 					node, car_reverse->config.tvd_id);
-				#endif
-				}
+#endif
+			}
 		}
 		if (car_reverse->config.input_src)
 			video_source_streamon_vin(car_reverse->config.tvd_id);
-		else {
-			#ifdef VIDEO_SUNXI_TVD_SPECIAL
+		else
+		{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
 			video_source_streamon(car_reverse->config.tvd_id);
-			#endif
-			}
+#endif
+		}
 	}
 	car_reverse->status = CAR_REVERSE_START;
 	car_reverse->thread_mask = 0;
@@ -1080,26 +1237,31 @@ static int car_reverse_preview_stop(void)
 	car_do_freemem(NULL);
 
 	car_reverse->status = CAR_REVERSE_STOP;
-	if (car_reverse->config.input_src && car_reverse->used_oview) {
+	if (car_reverse->config.input_src && car_reverse->used_oview)
+	{
 		for (i = 0; i < CAR_MAX_CH; i++)
 			video_source_streamoff_vin(i);
-	} else {
+	}
+	else
+	{
 		if (car_reverse->config.input_src)
 			video_source_streamoff_vin(car_reverse->config.tvd_id);
-		else {
-			#ifdef VIDEO_SUNXI_TVD_SPECIAL
+		else
+		{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
 			video_source_streamoff(car_reverse->config.tvd_id);
-			#endif
-			}
+#endif
+		}
 	}
 	spin_lock(&car_reverse->thread_lock);
 	car_reverse->thread_mask |= THREAD_NEED_STOP;
 	spin_unlock(&car_reverse->thread_lock);
-	if (car_reverse->config.input_src && car_reverse->used_oview) {
+	if (car_reverse->config.input_src && car_reverse->used_oview)
+	{
 		struct sched_param param = {.sched_priority = MAX_RT_PRIO - 40};
 		set_user_nice(car_reverse->display_frame_task, 0);
 		sched_setscheduler(car_reverse->display_frame_task,
-				SCHED_NORMAL, &param);
+						   SCHED_NORMAL, &param);
 		car_reverse->view_thread_start = 0;
 		car_reverse->algo_thread_start = 0;
 		car_reverse->ov_sync_frame = 0;
@@ -1110,10 +1272,10 @@ static int car_reverse_preview_stop(void)
 		while (car_reverse->thread_mask & THREAD_RUN)
 			msleep(1);
 		while (!car_reverse->algo_mask &&
-			car_reverse->display_frame_task)
+			   car_reverse->display_frame_task)
 			msleep(1);
 		while (!car_reverse->view_mask &&
-			 car_reverse->display_view_task)
+			   car_reverse->display_view_task)
 			msleep(1);
 		if (car_reverse->display_frame_task)
 			kthread_stop(car_reverse->display_frame_task);
@@ -1125,7 +1287,9 @@ static int car_reverse_preview_stop(void)
 		car_reverse->display_frame_task = 0;
 		car_reverse->display_view_task = 0;
 		car_reverse->display_update_task = 0;
-	} else {
+	}
+	else
+	{
 		while (car_reverse->thread_mask & THREAD_RUN)
 			msleep(1);
 		kthread_stop(car_reverse->display_update_task);
@@ -1134,50 +1298,64 @@ static int car_reverse_preview_stop(void)
 	preview_output_exit(&car_reverse->config);
 
 __buffer_gc:
-	if (car_reverse->config.input_src && car_reverse->used_oview) {
-		for (i = 0; i < CAR_MAX_CH; i++) {
+	if (car_reverse->config.input_src && car_reverse->used_oview)
+	{
+		for (i = 0; i < CAR_MAX_CH; i++)
+		{
 			bp = car_reverse->bufferOv_pool[i];
-			while (1) {
+			while (1)
+			{
 				node = video_source_dequeue_buffer_vin(i);
-				if (node) {
-				bp->queue_buffer(bp, node);
-				logdebug("%s: collect %p\n", __func__,
-				node->phy_address);
-				} else {
-				video_source_disconnect(
-				&car_reverse->config, i);
-				break;
+				if (node)
+				{
+					bp->queue_buffer(bp, node);
+					logdebug("%s: collect %p\n", __func__,
+							 node->phy_address);
+				}
+				else
+				{
+					video_source_disconnect(
+						&car_reverse->config, i);
+					break;
 				}
 			}
 		}
-		for (i = 0; i < CAR_MAX_CH; i++) {
+		for (i = 0; i < CAR_MAX_CH; i++)
+		{
 			bp = car_reverse->bufferOv_pool[i];
 			preview_bp = car_reverse->bufferOv_preview[i];
-			if (preview_bp) {
-				while (1) {
-				node = preview_bp->dequeue_buffer(
-				preview_bp);
-			if (node) {
-				bp->queue_buffer(bp, node);
-				logdebug("%s: collect %p\n",
-				__func__,
-				node->phy_address);
-				} else {
-				break;
-				}
+			if (preview_bp)
+			{
+				while (1)
+				{
+					node = preview_bp->dequeue_buffer(
+						preview_bp);
+					if (node)
+					{
+						bp->queue_buffer(bp, node);
+						logdebug("%s: collect %p\n",
+								 __func__,
+								 node->phy_address);
+					}
+					else
+					{
+						break;
+					}
 				}
 				rest_buffer_pool(NULL, preview_bp);
 				dump_buffer_pool(NULL, preview_bp);
 			}
 		}
 
-		for (i = 0; i < CAR_MAX_CH; i++) {
+		for (i = 0; i < CAR_MAX_CH; i++)
+		{
 			spin_lock(&car_reverse->display_lock);
 			pending_frame = &car_reverse->pending_frameOv[i];
 			bp = car_reverse->bufferOv_pool[i];
-			while (!list_empty(pending_frame)) {
+			while (!list_empty(pending_frame))
+			{
 				node = list_entry(pending_frame->next,
-						struct buffer_node, list);
+								  struct buffer_node, list);
 				list_del(&node->list);
 				bp->queue_buffer(bp, node);
 			}
@@ -1185,26 +1363,31 @@ __buffer_gc:
 			rest_buffer_pool(NULL, bp);
 			dump_buffer_pool(NULL, bp);
 		}
-	} else {
+	}
+	else
+	{
 		if (car_reverse->config.input_src)
 			node = video_source_dequeue_buffer_vin(
 				car_reverse->config.tvd_id);
-		else {
-			#ifdef VIDEO_SUNXI_TVD_SPECIAL
+		else
+		{
+#ifdef VIDEO_SUNXI_TVD_SPECIAL
 			node = video_source_dequeue_buffer(
 				car_reverse->config.tvd_id);
-			#endif
-			}
-		if (node) {
+#endif
+		}
+		if (node)
+		{
 			bp->queue_buffer(bp, node);
 			logdebug("%s: collect %p\n", __func__,
-				 node->phy_address);
+					 node->phy_address);
 			goto __buffer_gc;
 		}
 		spin_lock(&car_reverse->display_lock);
-		while (!list_empty(pending_frame)) {
+		while (!list_empty(pending_frame))
+		{
 			node = list_entry(pending_frame->next,
-					struct buffer_node, list);
+							  struct buffer_node, list);
 			list_del(&node->list);
 			bp->queue_buffer(bp, node);
 		}
@@ -1212,7 +1395,7 @@ __buffer_gc:
 		rest_buffer_pool(NULL, bp);
 		dump_buffer_pool(NULL, bp);
 		video_source_disconnect(&car_reverse->config,
-					car_reverse->config.tvd_id);
+								car_reverse->config.tvd_id);
 	}
 #ifdef USE_SUNXI_DI_MODULE
 	sunxi_di_close(di_id);
@@ -1232,7 +1415,8 @@ void car_reverse_set_int_ioin(void)
 	long unsigned int config;
 	config = SUNXI_PINCFG_PACK(SUNXI_PINCFG_TYPE_FUNC, 0xFFFF);
 	pin_config_get(SUNXI_PINCTRL, car_irq_pin_name, &config);
-	if (0 != SUNXI_PINCFG_UNPACK_VALUE(config)) {
+	if (0 != SUNXI_PINCFG_UNPACK_VALUE(config))
+	{
 		config = SUNXI_PINCFG_PACK(SUNXI_PINCFG_TYPE_FUNC, 0);
 		pin_config_set(SUNXI_PINCTRL, car_irq_pin_name, config);
 	}
@@ -1243,7 +1427,8 @@ void car_reverse_set_io_int(void)
 	long unsigned int config;
 	config = SUNXI_PINCFG_PACK(SUNXI_PINCFG_TYPE_FUNC, 0xFFFF);
 	pin_config_get(SUNXI_PINCTRL, car_irq_pin_name, &config);
-	if (6 != SUNXI_PINCFG_UNPACK_VALUE(config)) {
+	if (6 != SUNXI_PINCFG_UNPACK_VALUE(config))
+	{
 		config = SUNXI_PINCFG_PACK(SUNXI_PINCFG_TYPE_FUNC, 6);
 		pin_config_set(SUNXI_PINCTRL, car_irq_pin_name, config);
 	}
@@ -1251,13 +1436,16 @@ void car_reverse_set_io_int(void)
 
 static int car_reverse_gpio_status(void)
 {
-#ifdef _REVERSE_DEBUG_
+#ifdef _REVERSE_DEBUG_1
 	return (car_reverse->debug == CAR_REVERSE_START ? CAR_REVERSE_START
-							: CAR_REVERSE_STOP);
+													: CAR_REVERSE_STOP);
 #else
-	int value = 1;
+	int value = 1, ret = -1;
 	value = gpio_get_value(car_reverse->reverse_gpio);
-	return (value == 0) ? CAR_REVERSE_START : CAR_REVERSE_STOP;
+	dev_err(car_reverse->config.dev, "%s %d the value of gpio%d is %d ...\n", 
+		__FILE__, __LINE__, car_reverse->reverse_gpio, value);	
+
+	return (value == 1) ? CAR_REVERSE_START : CAR_REVERSE_STOP;
 #endif
 }
 
@@ -1289,17 +1477,22 @@ static int car_reverse_get_next_status(void)
 	return next_status;
 }
 
+
 static void status_detect_func(struct work_struct *work)
 {
 	int retval;
+
+	dev_err(car_reverse->config.dev, "%d enter status_detect_func, the times os interupts is %d ...\n", __LINE__,it_times);	
 	int status = car_reverse_get_next_status();
 
 	if (car_reverse->standby)
 		status = CAR_REVERSE_STOP;
 
-	switch (status) {
+	switch (status)
+	{
 	case CAR_REVERSE_START:
-		if (!car_reverse->needexit) {
+		if (!car_reverse->needexit)
+		{
 			retval = car_reverse_preview_start();
 			logdebug("start car reverse, return %d\n", retval);
 		}
@@ -1315,14 +1508,16 @@ static void status_detect_func(struct work_struct *work)
 	return;
 }
 
+
 static irqreturn_t reverse_irq_handle(int irqnum, void *data)
 {
+	it_times++;
 	queue_work(car_reverse->preview_workqueue, &car_reverse->status_detect);
 	return IRQ_HANDLED;
 }
 
 static ssize_t car_reverse_status_show(struct class *class,
-					struct class_attribute *attr, char *buf)
+									   struct class_attribute *attr, char *buf)
 {
 	int count = 0;
 
@@ -1336,8 +1531,8 @@ static ssize_t car_reverse_status_show(struct class *class,
 }
 
 static ssize_t car_reverse_format_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+										struct class_attribute *attr,
+										const char *buf, size_t count)
 {
 	if (!strncmp(buf, "1", 1))
 		car_reverse->format = 1;
@@ -1347,7 +1542,7 @@ static ssize_t car_reverse_format_store(struct class *class,
 }
 
 static ssize_t car_reverse_format_show(struct class *class,
-					struct class_attribute *attr, char *buf)
+									   struct class_attribute *attr, char *buf)
 {
 	int count = 0;
 	count += sprintf(buf, "%d\n", car_reverse->format);
@@ -1355,19 +1550,22 @@ static ssize_t car_reverse_format_show(struct class *class,
 }
 
 static ssize_t car_reverse_oview_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+									   struct class_attribute *attr,
+									   const char *buf, size_t count)
 {
-	if (!strncmp(buf, "1", 1)) {
+	if (!strncmp(buf, "1", 1))
+	{
 		car_reverse->used_oview = 1;
-	} else {
+	}
+	else
+	{
 		car_reverse->used_oview = 0;
 	}
 	return count;
 }
 
 static ssize_t car_reverse_oview_show(struct class *class,
-					struct class_attribute *attr, char *buf)
+									  struct class_attribute *attr, char *buf)
 {
 	int count = 0;
 	count += sprintf(buf, "%d\n", car_reverse->used_oview);
@@ -1375,19 +1573,22 @@ static ssize_t car_reverse_oview_show(struct class *class,
 }
 
 static ssize_t car_reverse_src_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+									 struct class_attribute *attr,
+									 const char *buf, size_t count)
 {
-	if (!strncmp(buf, "1", 1)) {
+	if (!strncmp(buf, "1", 1))
+	{
 		car_reverse->config.input_src = 1;
-	} else {
+	}
+	else
+	{
 		car_reverse->config.input_src = 0;
 	}
 	return count;
 }
 
 static ssize_t car_reverse_src_show(struct class *class,
-					struct class_attribute *attr, char *buf)
+									struct class_attribute *attr, char *buf)
 {
 	int count = 0;
 	count += sprintf(buf, "%d\n", car_reverse->config.input_src);
@@ -1395,13 +1596,14 @@ static ssize_t car_reverse_src_show(struct class *class,
 }
 
 static ssize_t car_reverse_rotation_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+										  struct class_attribute *attr,
+										  const char *buf, size_t count)
 {
 	int err;
 	unsigned long val;
 	err = kstrtoul(buf, 10, &val); /* strict_strtoul */
-	if (err) {
+	if (err)
+	{
 		return err;
 	}
 	car_reverse->config.rotation = (unsigned int)val;
@@ -1409,8 +1611,8 @@ static ssize_t car_reverse_rotation_store(struct class *class,
 }
 
 static ssize_t car_reverse_rotation_show(struct class *class,
-					struct class_attribute *attr,
-					char *buf)
+										 struct class_attribute *attr,
+										 char *buf)
 {
 	int count = 0;
 	count += sprintf(buf, "%d\n", car_reverse->config.rotation);
@@ -1418,8 +1620,8 @@ static ssize_t car_reverse_rotation_show(struct class *class,
 }
 
 static ssize_t car_reverse_needexit_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+										  struct class_attribute *attr,
+										  const char *buf, size_t count)
 {
 	if (!strncmp(buf, "1", 1))
 		car_reverse->needexit = 1;
@@ -1429,8 +1631,8 @@ static ssize_t car_reverse_needexit_store(struct class *class,
 }
 
 static ssize_t car_reverse_needexit_show(struct class *class,
-					struct class_attribute *attr,
-					char *buf)
+										 struct class_attribute *attr,
+										 char *buf)
 {
 	int count = 0;
 	if (car_reverse->needexit == 1)
@@ -1441,13 +1643,14 @@ static ssize_t car_reverse_needexit_show(struct class *class,
 }
 #ifdef CONFIG_SUPPORT_AUXILIARY_LINE
 static ssize_t car_reverse_orientation_store(struct class *class,
-						struct class_attribute *attr,
-						const char *buf, size_t count)
+											 struct class_attribute *attr,
+											 const char *buf, size_t count)
 {
 	int err;
 	unsigned long val;
 	err = kstrtoul(buf, 10, &val); /* strict_strtoul */
-	if (err) {
+	if (err)
+	{
 		return err;
 	}
 	car_reverse->config.car_direct = (unsigned int)val;
@@ -1455,8 +1658,8 @@ static ssize_t car_reverse_orientation_store(struct class *class,
 }
 
 static ssize_t car_reverse_orientation_show(struct class *class,
-						struct class_attribute *attr,
-						char *buf)
+											struct class_attribute *attr,
+											char *buf)
 {
 	int count = 0;
 	count += sprintf(buf, "%d\n", car_reverse->config.car_direct);
@@ -1464,13 +1667,14 @@ static ssize_t car_reverse_orientation_show(struct class *class,
 }
 
 static ssize_t car_reverse_lrdirect_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+										  struct class_attribute *attr,
+										  const char *buf, size_t count)
 {
 	int err;
 	unsigned long val;
 	err = kstrtoul(buf, 10, &val); /* strict_strtoul */
-	if (err) {
+	if (err)
+	{
 		return err;
 	}
 	car_reverse->config.lr_direct = (unsigned int)val;
@@ -1478,8 +1682,8 @@ static ssize_t car_reverse_lrdirect_store(struct class *class,
 }
 
 static ssize_t car_reverse_lrdirect_show(struct class *class,
-					struct class_attribute *attr,
-					char *buf)
+										 struct class_attribute *attr,
+										 char *buf)
 {
 	int count = 0;
 	count += sprintf(buf, "%d\n", car_reverse->config.lr_direct);
@@ -1487,13 +1691,14 @@ static ssize_t car_reverse_lrdirect_show(struct class *class,
 }
 
 static ssize_t car_reverse_mirror_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+										struct class_attribute *attr,
+										const char *buf, size_t count)
 {
 	int err;
 	unsigned long val;
 	err = kstrtoul(buf, 10, &val); /* strict_strtoul */
-	if (err) {
+	if (err)
+	{
 		return err;
 	}
 	car_reverse->config.pr_mirror = (unsigned int)val;
@@ -1501,7 +1706,7 @@ static ssize_t car_reverse_mirror_store(struct class *class,
 }
 
 static ssize_t car_reverse_mirror_show(struct class *class,
-					struct class_attribute *attr, char *buf)
+									   struct class_attribute *attr, char *buf)
 {
 	int count = 0;
 	count += sprintf(buf, "%d\n", car_reverse->config.pr_mirror);
@@ -1511,14 +1716,14 @@ static ssize_t car_reverse_mirror_show(struct class *class,
 #endif
 #ifdef _REVERSE_DEBUG_
 static ssize_t car_reverse_debug_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+									   struct class_attribute *attr,
+									   const char *buf, size_t count)
 {
 	if (!strncmp(buf, "stop", 4))
 		car_reverse->debug = CAR_REVERSE_STOP;
 	else if (!strncmp(buf, "start", 5))
 		car_reverse->debug = CAR_REVERSE_START;
-	queue_work(car_reverse->preview_workqueue, &car_reverse->status_detect);
+	// queue_work(car_reverse->preview_workqueue, &car_reverse->status_detect);
 	return count;
 }
 #endif
@@ -1526,20 +1731,20 @@ static ssize_t car_reverse_debug_store(struct class *class,
 static struct class_attribute car_reverse_attrs[] = {
 	__ATTR(status, 0775, car_reverse_status_show, NULL),
 	__ATTR(needexit, 0775, car_reverse_needexit_show,
-	car_reverse_needexit_store),
+		   car_reverse_needexit_store),
 	__ATTR(format, 0775, car_reverse_format_show,
-	car_reverse_format_store),
+		   car_reverse_format_store),
 	__ATTR(rotation, 0775, car_reverse_rotation_show,
-	car_reverse_rotation_store),
+		   car_reverse_rotation_store),
 	__ATTR(src, 0775, car_reverse_src_show, car_reverse_src_store),
 	__ATTR(oview, 0775, car_reverse_oview_show, car_reverse_oview_store),
 #ifdef CONFIG_SUPPORT_AUXILIARY_LINE
 	__ATTR(car_mirror, 0775, car_reverse_mirror_show,
-	car_reverse_mirror_store),
+		   car_reverse_mirror_store),
 	__ATTR(car_direct, 0775, car_reverse_orientation_show,
-	car_reverse_orientation_store),
+		   car_reverse_orientation_store),
 	__ATTR(car_lr, 0775, car_reverse_lrdirect_show,
-	car_reverse_lrdirect_store),
+		   car_reverse_lrdirect_store),
 #endif
 #ifdef _REVERSE_DEBUG_
 	__ATTR(debug, S_IRUGO | S_IWUSR, NULL, car_reverse_debug_store),
@@ -1547,8 +1752,38 @@ static struct class_attribute car_reverse_attrs[] = {
 	__ATTR_NULL};
 
 static struct class car_reverse_class = {
-	.name = "car_reverse", .class_attrs = car_reverse_attrs,
+	.name = "car_reverse",
+	.class_attrs = car_reverse_attrs,
 };
+
+static int watch_file_kill_pthread(void *data)
+{
+	int ret = -1;
+	struct file *fp;
+
+	dev_err(car_reverse->config.dev, "%s %d Enter watch_file_kill_pthread...\n",
+			__FILE__, __LINE__);
+	while (1)
+	{
+		fp = filp_open("/tmp/delete.c", O_RDONLY, S_IRUSR);
+		if (IS_ERR(fp))
+		{
+			continue;
+		}
+		else
+		{
+			filp_close(fp, NULL);
+			ret = car_reverse_preview_stop();
+			dev_err(car_reverse->config.dev, "%s %d stop car reverse, return %d\n",
+					__FILE__, __LINE__, ret);
+			break;
+		}
+
+		msleep(100);
+	}
+
+	return 0;
+}
 
 static int car_reverse_probe(struct platform_device *pdev)
 {
@@ -1557,14 +1792,18 @@ static int car_reverse_probe(struct platform_device *pdev)
 #ifdef USE_SUNXI_DI_MODULE
 	di_id = -1;
 #endif
-	if (!pdev->dev.of_node) {
+
+	MYDEBUG("Enter car_reverse_probe...");
+	if (!pdev->dev.of_node)
+	{
 		dev_err(&pdev->dev, "of_node is missing\n");
 		retval = -EINVAL;
 		goto _err_out;
 	}
 	car_reverse = devm_kzalloc(
 		&pdev->dev, sizeof(struct car_reverse_private_data), GFP_KERNEL);
-	if (!car_reverse) {
+	if (!car_reverse)
+	{
 		dev_err(&pdev->dev, "kzalloc for private data failed\n");
 		retval = -ENOMEM;
 		goto _err_out;
@@ -1579,18 +1818,30 @@ static int car_reverse_probe(struct platform_device *pdev)
 	spin_lock_init(&car_reverse->free_lock);
 	car_reverse->needexit = 0;
 	car_reverse->status = CAR_REVERSE_STOP;
+
+	// car_reverse->reverse_gpio = 8;
 	sunxi_gpio_to_name(car_reverse->reverse_gpio, car_irq_pin_name);
+
+#ifdef FILE_WATCH
+	gpio_direction_output(car_reverse->reverse_gpio, 1);
+	car_reverse->file_watch_del =
+		kthread_run(watch_file_kill_pthread, NULL, "sunxi-file_watch");
+#endif
+
+	dev_err(&pdev->dev,"%s $d car_reverse->reverse_gpio is %d",  __FILE__, __LINE__, car_reverse->reverse_gpio);
 	reverse_pin_irqnum = gpio_to_irq(car_reverse->reverse_gpio);
-	if (IS_ERR_VALUE(reverse_pin_irqnum)) {
+	if (IS_ERR_VALUE(reverse_pin_irqnum))
+	{
 		dev_err(&pdev->dev,
-			"map gpio [%d] to virq failed, errno = %ld\n",
-			car_reverse->reverse_gpio, reverse_pin_irqnum);
+				"map gpio [%d] to virq failed, errno = %ld\n",
+				car_reverse->reverse_gpio, reverse_pin_irqnum);
 		retval = -EINVAL;
 		goto _err_out;
 	}
 	car_reverse->preview_workqueue =
 		create_singlethread_workqueue("car-reverse-wq");
-	if (!car_reverse->preview_workqueue) {
+	if (!car_reverse->preview_workqueue)
+	{
 		dev_err(&pdev->dev, "create workqueue failed\n");
 		retval = -EINVAL;
 		goto _err_out;
@@ -1610,16 +1861,21 @@ static int car_reverse_probe(struct platform_device *pdev)
 	printk(KERN_ERR "%s:%d\n", __FUNCTION__, __LINE__);
 
 	if (request_irq(reverse_pin_irqnum, reverse_irq_handle,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			"car-reverse", pdev)) {
+					IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+					"car-reverse", pdev))
+	{
 		dev_err(&pdev->dev, "request irq %ld failed\n",
-			reverse_pin_irqnum);
+				reverse_pin_irqnum);
 		retval = -EBUSY;
 		goto _err_free_buffer;
 	}
 	car_reverse->debug = CAR_REVERSE_STOP;
-	queue_work(car_reverse->preview_workqueue, &car_reverse->status_detect);
+	// queue_work(car_reverse->preview_workqueue, &car_reverse->status_detect);
 	dev_info(&pdev->dev, "car reverse module probe ok\n");
+
+
+
+
 	return 0;
 _err_free_buffer:
 /*
@@ -1652,7 +1908,8 @@ static int car_reverse_remove(struct platform_device *pdev)
 	class_unregister(&car_reverse_class);
 	free_irq(gpio_to_irq(priv->reverse_gpio), pdev);
 	cancel_work_sync(&priv->status_detect);
-	if (priv->preview_workqueue != NULL) {
+	if (priv->preview_workqueue != NULL)
+	{
 		flush_workqueue(priv->preview_workqueue);
 		destroy_workqueue(priv->preview_workqueue);
 		priv->preview_workqueue = NULL;
@@ -1664,7 +1921,8 @@ static int car_reverse_remove(struct platform_device *pdev)
 static int car_reverse_suspend(struct device *dev)
 {
 	int retval;
-	if (car_reverse->status == CAR_REVERSE_START) {
+	if (car_reverse->status == CAR_REVERSE_START)
+	{
 		car_reverse->standby = 1;
 		retval = car_reverse_preview_stop();
 		flush_workqueue(car_reverse->preview_workqueue);
@@ -1675,20 +1933,23 @@ static int car_reverse_suspend(struct device *dev)
 static int car_reverse_resume(struct device *dev)
 {
 
-	if (car_reverse->standby) {
+	if (car_reverse->standby)
+	{
 		car_reverse->standby = 0;
-		queue_work(car_reverse->preview_workqueue,
-			&car_reverse->status_detect);
+		// queue_work(car_reverse->preview_workqueue,
+		// 		   &car_reverse->status_detect);
 	}
 	return 0;
 }
 
 static const struct dev_pm_ops car_reverse_pm_ops = {
-	.suspend = car_reverse_suspend, .resume = car_reverse_resume,
+	.suspend = car_reverse_suspend,
+	.resume = car_reverse_resume,
 };
 
 static const struct of_device_id car_reverse_dt_ids[] = {
-	{.compatible = "allwinner,sunxi-car-reverse"}, {},
+	{.compatible = "allwinner,sunxi-car-reverse"},
+	{},
 };
 
 static struct platform_driver car_reverse_driver = {
@@ -1705,7 +1966,8 @@ static int __init car_reverse_module_init(void)
 {
 	int ret;
 	ret = platform_driver_register(&car_reverse_driver);
-	if (ret) {
+	if (ret)
+	{
 		pr_err("platform driver register failed\n");
 		return ret;
 	}
