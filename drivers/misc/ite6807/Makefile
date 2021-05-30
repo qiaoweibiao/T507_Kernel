@@ -1,0 +1,7 @@
+obj-$(CONFIG_ITE6807_HDMI_VBYONE)	+= it6807_module.o
+
+it6807_module-$(CONFIG_ITE6807_HDMI_VBYONE) += it6807.o iTE6805_CEC_DRV.o iTE6805_CEC_FETURE.o \
+					iTE6805_CEC_SYS.o iTE6805_DRV.o iTE6805_EDID.o \
+					iTE6805_EQ.o iTE6805_EVB_Debug.o iTE6805_HDCP_Repeater.o \
+					iTE6805_HDCP_Repeater_Callback.o iTE6805_I2C_RDWR.o \
+					iTE6805_MHL_DRV.o iTE6805_MHL_SYS.o iTE6805_SYS.o Utility.o

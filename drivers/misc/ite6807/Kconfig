@@ -1,0 +1,5 @@
+config ITE6807_HDMI_VBYONE
+tristate "external hdmi switch vbyone chip driver 4k panel"
+default N
+help
+This is hdmi switch vbyone driver
