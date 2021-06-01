@@ -818,6 +818,7 @@ static void goodix_ts_work_func(struct work_struct *work)
 
     GTP_DEBUG_FUNC();
     dprintk(DEBUG_X_Y_INFO,"===enter %s===\n",__func__);
+	
     ts = container_of(work, struct goodix_ts_data, work);
     if (ts->enter_update)
     {
@@ -2665,13 +2666,14 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     s32 ret = -1;
     struct goodix_ts_data *ts;
     u16 version_info;
-	printk("qwb0070000000000000000000000000000000");
+	
 
     //do NOT remove these logs
     dprintk(DEBUG_INIT,"GTP Driver Version: %s", GTP_DRIVER_VERSION);
     dprintk(DEBUG_INIT,"GTP I2C Address: 0x%02x", client->addr);
 
     i2c_connect_client = client;
+	printk(KERN_ERR"qwb00700000000000000000000000000000000000\n");
 
     if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
     {
