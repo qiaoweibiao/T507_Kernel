@@ -1744,7 +1744,7 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
         (!cfg_info_len[5]) && (!cfg_info_len[6]) &&
 		(!cfg_info_len[7]))
     {
-        sensor_id = 0;
+        sensor_id = 0;//qwb 000
     }
     else
     {

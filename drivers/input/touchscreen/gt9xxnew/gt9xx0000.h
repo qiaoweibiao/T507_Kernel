@@ -41,19 +41,19 @@
 #include <linux/pinctrl/consumer.h>
 
 /***************************PART1:ON/OFF define*******************************/
-#define GTP_CUSTOM_CFG        1
-#define GTP_CHANGE_X2Y        0
-#define GTP_DRIVER_SEND_CFG   1//0
+#define GTP_CUSTOM_CFG        0
+#define GTP_CHANGE_X2Y        0//
+#define GTP_DRIVER_SEND_CFG   0//0
 #define GTP_HAVE_TOUCH_KEY    0
 #define GTP_ICS_SLOT_REPORT   0//0
 
 #define GTP_AUTO_UPDATE       0    /* auto update fw by .bin file as default*/
-#define GTP_HEADER_FW_UPDATE  1    /* auto update fw by gtp_default_FW in gt9xx_firmware.h, function together with GTP_AUTO_UPDATE */
+#define GTP_HEADER_FW_UPDATE  0    /* auto update fw by gtp_default_FW in gt9xx_firmware.h, function together with GTP_AUTO_UPDATE */
 #define GTP_AUTO_UPDATE_CFG   0    /* auto update config by .cfg file, function together with GTP_AUTO_UPDATE*/
 
 #define GTP_COMPATIBLE_MODE   0    /* compatible with GT9XXF*/
 
-#define GTP_CREATE_WR_NODE    1
+#define GTP_CREATE_WR_NODE    0
 #define GTP_ESD_PROTECT       0    /* esd protection with a cycle of 2 seconds*/
 
 #define GTP_WITH_PEN          0
@@ -354,8 +354,8 @@ extern void gtp_set_io_int(void);
 	0x00,0x00,0x00,0x00,0xDF,0x01}
 
 #if GTP_CUSTOM_CFG
-  #define GTP_MAX_HEIGHT   1920//800
-  #define GTP_MAX_WIDTH    720//480
+  #define GTP_MAX_HEIGHT   2000//800
+  #define GTP_MAX_WIDTH    2000//480
   #define GTP_INT_TRIGGER  0            /* 0: Rising 1: Falling*/
 #else
   #define GTP_MAX_HEIGHT   4096

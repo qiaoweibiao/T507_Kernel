@@ -42,9 +42,9 @@
 
 /***************************PART1:ON/OFF define*******************************/
 #define GTP_CUSTOM_CFG        0
-#define GTP_CHANGE_X2Y        0//
+#define GTP_CHANGE_X2Y        0
 #define GTP_DRIVER_SEND_CFG   0//0
-#define GTP_HAVE_TOUCH_KEY    0
+#define GTP_HAVE_TOUCH_KEY    0//1
 #define GTP_ICS_SLOT_REPORT   0//0
 
 #define GTP_AUTO_UPDATE       0    /* auto update fw by .bin file as default*/
@@ -354,8 +354,8 @@ extern void gtp_set_io_int(void);
 	0x00,0x00,0x00,0x00,0xDF,0x01}
 
 #if GTP_CUSTOM_CFG
-  #define GTP_MAX_HEIGHT   1920//800
-  #define GTP_MAX_WIDTH    720//480
+  #define GTP_MAX_HEIGHT   720//800
+  #define GTP_MAX_WIDTH    1920//480
   #define GTP_INT_TRIGGER  0            /* 0: Rising 1: Falling*/
 #else
   #define GTP_MAX_HEIGHT   4096
@@ -375,8 +375,8 @@ extern void gtp_set_io_int(void);
 #define GT91XX_CONFIG_PROC_FILE     "gt9xx_config"
 #define GTP_POLL_TIME         10
 #define GTP_ADDR_LENGTH       2
-#define GTP_CONFIG_MIN_LENGTH 186
-#define GTP_CONFIG_MAX_LENGTH 240
+#define GTP_CONFIG_MIN_LENGTH 186//186
+#define GTP_CONFIG_MAX_LENGTH 240//240
 #define FAIL                  0
 #define SUCCESS               1
 #define SWITCH_OFF            0
